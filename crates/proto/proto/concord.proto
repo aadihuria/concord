@@ -1,0 +1,190 @@
+syntax = "proto3";
+package concord;
+
+// --- Client API ---
+
+service ClientService {
+    rpc Get(GetRequest) returns (GetResponse);
+    rpc Put(PutRequest) returns (PutResponse);
+    rpc Delete(DeleteRequest) returns (DeleteResponse);
+    rpc Subscribe(SubscribeRequest) returns (stream WatchEvent);
+
+    // CRDT-specific operations
+    rpc AddToSet(AddToSetRequest) returns (AddToSetResponse);
+    rpc RemoveFromSet(RemoveFromSetRequest) returns (RemoveFromSetResponse);
+    rpc InsertIntoSequence(InsertIntoSequenceRequest) returns (InsertIntoSequenceResponse);
+    rpc DeleteFromSequence(DeleteFromSequenceRequest) returns (DeleteFromSequenceResponse);
+    rpc GetSequence(GetSequenceRequest) returns (GetSequenceResponse);
+    rpc GetSet(GetSetRequest) returns (GetSetResponse);
+}
+
+message GetRequest {
+    string namespace = 1;
+    string key = 2;
+}
+
+message GetResponse {
+    string value_json = 1;
+    uint64 version = 2;
+    bool found = 3;
+}
+
+message PutRequest {
+    string namespace = 1;
+    string key = 2;
+    string value_json = 3;
+    string node_id = 4;
+    uint64 timestamp = 5;
+}
+
+message PutResponse {
+    uint64 index = 1;
+    bool success = 2;
+    string leader_hint = 3;
+}
+
+message DeleteRequest {
+    string namespace = 1;
+    string key = 2;
+}
+
+message DeleteResponse {
+    bool success = 1;
+    string leader_hint = 2;
+}
+
+message SubscribeRequest {
+    string namespace = 1;
+    string key = 2;
+}
+
+message WatchEvent {
+    string namespace = 1;
+    string key = 2;
+    string value_json = 3;
+    uint64 version = 4;
+}
+
+message AddToSetRequest {
+    string namespace = 1;
+    string key = 2;
+    string element = 3;
+    string node_id = 4;
+}
+
+message AddToSetResponse {
+    bool success = 1;
+    string leader_hint = 2;
+}
+
+message RemoveFromSetRequest {
+    string namespace = 1;
+    string key = 2;
+    string element = 3;
+}
+
+message RemoveFromSetResponse {
+    bool success = 1;
+    string leader_hint = 2;
+}
+
+message InsertIntoSequenceRequest {
+    string namespace = 1;
+    string key = 2;
+    uint32 position = 3;
+    string value_json = 4;
+    string node_id = 5;
+    uint64 timestamp = 6;
+}
+
+message InsertIntoSequenceResponse {
+    bool success = 1;
+    string leader_hint = 2;
+}
+
+message DeleteFromSequenceRequest {
+    string namespace = 1;
+    string key = 2;
+    uint32 position = 3;
+}
+
+message DeleteFromSequenceResponse {
+    bool success = 1;
+    string leader_hint = 2;
+}
+
+message GetSequenceRequest {
+    string namespace = 1;
+    string key = 2;
+}
+
+message GetSequenceResponse {
+    repeated string values_json = 1;
+    bool found = 2;
+}
+
+message GetSetRequest {
+    string namespace = 1;
+    string key = 2;
+}
+
+message GetSetResponse {
+    repeated string elements = 1;
+    bool found = 2;
+}
+
+// --- Raft Internal RPC ---
+
+service RaftService {
+    rpc AppendEntries(AppendEntriesReq) returns (AppendEntriesResp);
+    rpc RequestVote(VoteReq) returns (VoteResp);
+    rpc InstallSnapshot(InstallSnapshotReq) returns (InstallSnapshotResp);
+}
+
+message LogEntryProto {
+    uint64 index = 1;
+    uint64 term = 2;
+    bytes data = 3;
+}
+
+message AppendEntriesReq {
+    uint64 term = 1;
+    string leader_id = 2;
+    uint64 prev_log_index = 3;
+    uint64 prev_log_term = 4;
+    repeated LogEntryProto entries = 5;
+    uint64 leader_commit = 6;
+}
+
+message AppendEntriesResp {
+    uint64 term = 1;
+    bool success = 2;
+    uint64 match_index = 3;
+    string from = 4;
+}
+
+message VoteReq {
+    uint64 term = 1;
+    string candidate_id = 2;
+    uint64 last_log_index = 3;
+    uint64 last_log_term = 4;
+}
+
+message VoteResp {
+    uint64 term = 1;
+    bool vote_granted = 2;
+    string from = 3;
+}
+
+message InstallSnapshotReq {
+    uint64 term = 1;
+    string leader_id = 2;
+    uint64 last_included_index = 3;
+    uint64 last_included_term = 4;
+    bytes data = 5;
+}
+
+message InstallSnapshotResp {
+    uint64 term = 1;
+    string from = 2;
+}
