@@ -165,6 +165,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     fn make_crdt_entry(index: u64, term: u64) -> LogEntry {
         LogEntry {
             index,

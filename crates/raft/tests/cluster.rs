@@ -101,6 +101,7 @@ impl TestCluster {
         self.partitioned.remove(&(b, a));
     }
 
+    #[allow(dead_code)]
     fn heal_all(&mut self) {
         self.partitioned.clear();
     }
