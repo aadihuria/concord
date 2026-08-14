@@ -1,0 +1,15 @@
+[package]
+name = "concord-bench"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[[bin]]
+name = "throughput"
+path = "throughput.rs"
+
+[dependencies]
+concord-crdt = { path = "../crates/crdt" }
+concord-raft = { path = "../crates/raft" }
+serde_json = { workspace = true }
+tokio = { workspace = true }
