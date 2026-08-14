@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
+use tracing::instrument;
 
 use concord_proto::concord::raft_service_server::RaftService;
 use concord_proto::concord::{
@@ -24,6 +25,7 @@ impl RaftServiceImpl {
 
 #[tonic::async_trait]
 impl RaftService for RaftServiceImpl {
+    #[instrument(skip(self, request), fields(otel.kind = "server"))]
     async fn append_entries(
         &self,
         request: Request<AppendEntriesReq>,
@@ -73,6 +75,7 @@ impl RaftService for RaftServiceImpl {
         Err(Status::internal("no response generated"))
     }
 
+    #[instrument(skip(self, request), fields(otel.kind = "server"))]
     async fn request_vote(
         &self,
         request: Request<VoteReq>,
@@ -105,6 +108,7 @@ impl RaftService for RaftServiceImpl {
         Err(Status::internal("no response generated"))
     }
 
+    #[instrument(skip(self, request), fields(otel.kind = "server"))]
     async fn install_snapshot(
         &self,
         request: Request<InstallSnapshotReq>,

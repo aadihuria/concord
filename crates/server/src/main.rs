@@ -3,6 +3,8 @@ use std::net::SocketAddr;
 
 use clap::Parser;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use concord_server::ConcordServer;
 
@@ -18,15 +20,25 @@ struct Args {
     /// peers in format id=addr,id=addr
     #[arg(long, value_delimiter = ',')]
     peers: Vec<String>,
+
+    /// enable opentelemetry export (set OTEL_EXPORTER_OTLP_ENDPOINT)
+    #[arg(long, default_value_t = false)]
+    otel: bool,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive("concord=info".parse()?))
-        .init();
-
     let args = Args::parse();
+
+    if args.otel {
+        init_otel_tracing(&args.id)?;
+    } else {
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                EnvFilter::from_default_env().add_directive("concord=info".parse()?),
+            )
+            .init();
+    }
 
     let addr: SocketAddr = args.addr.parse()?;
 
@@ -44,4 +56,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let server = ConcordServer::new(&args.id, addr, peer_addrs);
     server.run().await
+}
+
+fn init_otel_tracing(service_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use opentelemetry::KeyValue;
+    use opentelemetry_sdk::Resource;
+    use opentelemetry_sdk::trace::TracerProvider;
+    use opentelemetry_otlp::SpanExporter;
+
+    let exporter = SpanExporter::builder()
+        .with_tonic()
+        .build()?;
+
+    let provider = TracerProvider::builder()
+        .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
+        .with_resource(Resource::new(vec![
+            KeyValue::new("service.name", service_name.to_string()),
+        ]))
+        .build();
+
+    use opentelemetry::trace::TracerProvider as _;
+    let telemetry = tracing_opentelemetry::layer()
+        .with_tracer(provider.tracer("concord"));
+
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env().add_directive("concord=info".parse()?))
+        .with(tracing_subscriber::fmt::layer())
+        .with(telemetry)
+        .init();
+
+    Ok(())
 }

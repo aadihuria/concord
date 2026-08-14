@@ -6,6 +6,7 @@ use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 use tonic::{Request, Response, Status};
+use tracing::instrument;
 
 use concord_crdt::state::StateKey;
 use concord_crdt::CrdtOp;
@@ -30,6 +31,7 @@ impl ClientServiceImpl {
 
 #[tonic::async_trait]
 impl ClientService for ClientServiceImpl {
+    #[instrument(skip(self, request), fields(otel.kind = "server"))]
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
         let req = request.into_inner();
         let key = StateKey::new(&req.namespace, &req.key);
@@ -52,6 +54,7 @@ impl ClientService for ClientServiceImpl {
         }
     }
 
+    #[instrument(skip(self, request), fields(otel.kind = "server"))]
     async fn put(&self, request: Request<PutRequest>) -> Result<Response<PutResponse>, Status> {
         let req = request.into_inner();
 
@@ -92,6 +95,7 @@ impl ClientService for ClientServiceImpl {
         }
     }
 
+    #[instrument(skip(self, request), fields(otel.kind = "server"))]
     async fn delete(
         &self,
         request: Request<DeleteRequest>,
