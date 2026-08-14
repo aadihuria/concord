@@ -6,6 +6,7 @@ members = [
     "crates/raft",
     "crates/proto",
     "crates/server",
+    "crates/client-py",
     "benches",
 ]
 
