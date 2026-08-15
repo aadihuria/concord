@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: concord-client
+  namespace: concord
+  labels:
+    app: concord
+spec:
+  type: ClusterIP
+  selector:
+    app: concord
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051

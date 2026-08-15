@@ -82,7 +82,28 @@ docker compose up --build
 
 This starts a 3-node cluster. The leader is accessible at `localhost:50051`.
 
-### Option 2: Run from source
+### Option 2: Kubernetes
+
+```bash
+# build and load the image (e.g. for minikube)
+docker build -t concord:latest .
+minikube image load concord:latest  # or push to your registry
+
+# deploy the 3-node cluster
+kubectl apply -f k8s/
+```
+
+The StatefulSet creates pods `concord-0`, `concord-1`, `concord-2` with stable DNS names via a headless service. Each pod auto-discovers its peers through `<pod>.concord.concord.svc.cluster.local`.
+
+```bash
+# verify the cluster is running
+kubectl -n concord get pods
+
+# port-forward to the leader
+kubectl -n concord port-forward svc/concord-client 50051:50051
+```
+
+### Option 3: Run from source
 
 ```bash
 # Terminal 1
@@ -164,6 +185,7 @@ concord/
     client-py/   — Python SDK via PyO3
   benches/       — throughput and failover benchmarks
   examples/      — multi-agent demo
+  k8s/           — Kubernetes manifests (StatefulSet + headless service)
   docs/
     design.md    — CRDT + Raft design rationale
 ```

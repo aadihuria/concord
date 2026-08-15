@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: concord
+  namespace: concord
+spec:
+  serviceName: concord
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: concord
+  template:
+    metadata:
+      labels:
+        app: concord
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: concord
+          image: concord:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 50051
+              name: grpc
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: REPLICAS
+              value: "3"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              PEERS=""
+              for i in $(seq 0 $((REPLICAS - 1))); do
+                PEER_NAME="concord-${i}"
+                if [ "$PEER_NAME" != "$POD_NAME" ]; then
+                  if [ -n "$PEERS" ]; then
+                    PEERS="${PEERS},"
+                  fi
+                  PEERS="${PEERS}${PEER_NAME}=http://${PEER_NAME}.concord.concord.svc.cluster.local:50051"
+                fi
+              done
+              exec concord-server \
+                --id "$POD_NAME" \
+                --addr 0.0.0.0:50051 \
+                --peers "$PEERS"
+          readinessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
