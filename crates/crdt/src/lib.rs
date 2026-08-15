@@ -6,4 +6,4 @@ pub mod state;
 pub use lww::LwwRegister;
 pub use orset::OrSet;
 pub use sequence::RgaSequence;
-pub use state::{CrdtState, CrdtOp};
+pub use state::{CrdtOp, CrdtState};

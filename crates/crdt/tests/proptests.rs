@@ -8,8 +8,7 @@ use concord_crdt::sequence::RgaSequence;
 // --- LWW-Register property tests ---
 
 fn arb_lww() -> impl Strategy<Value = LwwRegister> {
-    (1u64..1000, "[a-z]{1,4}")
-        .prop_map(|(ts, node)| LwwRegister::new(json!(ts), ts, node))
+    (1u64..1000, "[a-z]{1,4}").prop_map(|(ts, node)| LwwRegister::new(json!(ts), ts, node))
 }
 
 proptest! {

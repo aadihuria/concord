@@ -49,8 +49,8 @@ impl Wal {
     }
 
     pub fn append(&mut self, entry: &WalEntry) -> Result<(), StorageError> {
-        let payload = bincode::serialize(entry)
-            .map_err(|e| StorageError::Serialize(e.to_string()))?;
+        let payload =
+            bincode::serialize(entry).map_err(|e| StorageError::Serialize(e.to_string()))?;
 
         let len = payload.len() as u32;
         let mut to_checksum = Vec::with_capacity(4 + payload.len());
@@ -92,7 +92,10 @@ impl Wal {
         let path = self.dir.join("wal.log");
         let entries = Self::read_entries(&path)?;
 
-        let keep: Vec<_> = entries.into_iter().filter(|e| e.index <= last_index).collect();
+        let keep: Vec<_> = entries
+            .into_iter()
+            .filter(|e| e.index <= last_index)
+            .collect();
 
         drop(std::mem::replace(
             &mut self.writer,
@@ -186,8 +189,8 @@ impl Wal {
                 break;
             }
 
-            let entry: WalEntry = bincode::deserialize(&payload)
-                .map_err(|e| StorageError::CorruptedEntry {
+            let entry: WalEntry =
+                bincode::deserialize(&payload).map_err(|e| StorageError::CorruptedEntry {
                     offset,
                     reason: e.to_string(),
                 })?;
@@ -273,12 +276,17 @@ mod tests {
 
         // corrupt the crc of the second entry
         let path = tmp.path().join("wal.log");
-        let mut file = OpenOptions::new().read(true).write(true).open(&path).unwrap();
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
 
         // read first entry to find its size
         let mut header = [0u8; HEADER_SIZE];
         file.read_exact(&mut header).unwrap();
-        let first_payload_len = u32::from_le_bytes([header[4], header[5], header[6], header[7]]) as u64;
+        let first_payload_len =
+            u32::from_le_bytes([header[4], header[5], header[6], header[7]]) as u64;
         let second_entry_offset = HEADER_SIZE as u64 + first_payload_len;
 
         // flip a bit in the second entry's crc
@@ -303,7 +311,8 @@ mod tests {
         let mut wal = Wal::open(tmp.path()).unwrap();
 
         for i in 1..=5 {
-            wal.append(&make_entry(i, 1, format!("entry-{}", i).as_bytes())).unwrap();
+            wal.append(&make_entry(i, 1, format!("entry-{}", i).as_bytes()))
+                .unwrap();
         }
         wal.sync().unwrap();
 

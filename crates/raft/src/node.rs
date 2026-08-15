@@ -260,16 +260,11 @@ impl RaftNode {
         if resp.success {
             self.next_index
                 .insert(resp.from.clone(), resp.match_index + 1);
-            self.match_index
-                .insert(resp.from.clone(), resp.match_index);
+            self.match_index.insert(resp.from.clone(), resp.match_index);
             self.try_advance_commit();
         } else {
             // decrement next_index and retry
-            let ni = self
-                .next_index
-                .get(&resp.from)
-                .copied()
-                .unwrap_or(1);
+            let ni = self.next_index.get(&resp.from).copied().unwrap_or(1);
             let new_ni = if ni > 1 { ni - 1 } else { 1 };
             self.next_index.insert(resp.from.clone(), new_ni);
             self.replicate_to(&resp.from);
@@ -291,8 +286,8 @@ impl RaftNode {
 
         self.maybe_step_down(req.term);
 
-        let can_vote = self.voted_for.is_none()
-            || self.voted_for.as_deref() == Some(&req.candidate_id);
+        let can_vote =
+            self.voted_for.is_none() || self.voted_for.as_deref() == Some(&req.candidate_id);
 
         let log_up_to_date = req.last_log_term > self.log.last_term()
             || (req.last_log_term == self.log.last_term()
@@ -361,10 +356,14 @@ impl RaftNode {
         self.leader_id = Some(req.leader_id.clone());
         self.reset_election_timeout();
 
-        if let Ok(snapshot) = serde_json::from_slice::<crate::state_machine::StateMachineSnapshot>(&req.data) {
+        if let Ok(snapshot) =
+            serde_json::from_slice::<crate::state_machine::StateMachineSnapshot>(&req.data)
+        {
             self.state_machine.restore(snapshot);
-            self.log.set_snapshot_meta(req.last_included_index, req.last_included_term);
-            self.log.compact(req.last_included_index, req.last_included_term);
+            self.log
+                .set_snapshot_meta(req.last_included_index, req.last_included_term);
+            self.log
+                .compact(req.last_included_index, req.last_included_term);
             self.commit_index = std::cmp::max(self.commit_index, req.last_included_index);
             self.last_applied = req.last_included_index;
 
@@ -491,10 +490,7 @@ impl RaftNode {
         let prev_index = if next > 0 { next - 1 } else { 0 };
         let prev_term = self.log.term_at(prev_index).unwrap_or(0);
 
-        let entries: Vec<LogEntry> = self
-            .log
-            .entries_from(next)
-            .to_vec();
+        let entries: Vec<LogEntry> = self.log.entries_from(next).to_vec();
 
         self.send(
             peer,
@@ -559,7 +555,7 @@ impl RaftNode {
     }
 
     fn quorum_size(&self) -> usize {
-        (self.config.peers.len() + 1) / 2 + 1
+        (self.config.peers.len() + 1).div_ceil(2)
     }
 
     fn random_election_deadline(min: Duration, max: Duration) -> Instant {

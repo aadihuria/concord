@@ -36,7 +36,9 @@ impl PeerTransport {
         let channel = endpoint.connect().await?;
         let client = RaftServiceClient::new(channel);
 
-        self.peers.write().insert(peer_id.to_string(), client.clone());
+        self.peers
+            .write()
+            .insert(peer_id.to_string(), client.clone());
         Ok(client)
     }
 

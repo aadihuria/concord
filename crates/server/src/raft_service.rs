@@ -9,9 +9,9 @@ use concord_proto::concord::{
     AppendEntriesReq, AppendEntriesResp, InstallSnapshotReq, InstallSnapshotResp, LogEntryProto,
     VoteReq, VoteResp,
 };
+use concord_raft::log::{Command, LogEntry};
 use concord_raft::message::*;
 use concord_raft::node::RaftNode;
-use concord_raft::log::{Command, LogEntry};
 
 pub struct RaftServiceImpl {
     node: Arc<Mutex<RaftNode>>,
@@ -36,8 +36,7 @@ impl RaftService for RaftServiceImpl {
             .entries
             .into_iter()
             .map(|e| {
-                let command: Command = serde_json::from_slice(&e.data)
-                    .unwrap_or(Command::Noop);
+                let command: Command = serde_json::from_slice(&e.data).unwrap_or(Command::Noop);
                 LogEntry {
                     index: e.index,
                     term: e.term,
@@ -76,10 +75,7 @@ impl RaftService for RaftServiceImpl {
     }
 
     #[instrument(skip(self, request), fields(otel.kind = "server"))]
-    async fn request_vote(
-        &self,
-        request: Request<VoteReq>,
-    ) -> Result<Response<VoteResp>, Status> {
+    async fn request_vote(&self, request: Request<VoteReq>) -> Result<Response<VoteResp>, Status> {
         let req = request.into_inner();
 
         let msg = RaftMessage::RequestVote(VoteRequest {

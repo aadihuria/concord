@@ -201,11 +201,7 @@ impl RgaSequence {
             return;
         }
 
-        let parent_idx = self
-            .index
-            .get(&parent)
-            .copied()
-            .unwrap_or(0);
+        let parent_idx = self.index.get(&parent).copied().unwrap_or(0);
 
         // RGA insert: scan right from parent, skipping nodes whose subtree
         // belongs to a sibling with a higher ID than ours. Stop when we find
@@ -303,7 +299,10 @@ mod tests {
         seq.insert(2, json!("step-3"), 3, "agent-a");
 
         let vals = seq.values();
-        assert_eq!(vals, vec![&json!("step-1"), &json!("step-2"), &json!("step-3")]);
+        assert_eq!(
+            vals,
+            vec![&json!("step-1"), &json!("step-2"), &json!("step-3")]
+        );
     }
 
     #[test]

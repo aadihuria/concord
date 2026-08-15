@@ -142,12 +142,20 @@ mod tests {
     fn test_basic_crud() {
         let store = MemStore::new();
 
-        store.put("agent-1".into(), json!({"status": "running"}), "agent-1".into());
+        store.put(
+            "agent-1".into(),
+            json!({"status": "running"}),
+            "agent-1".into(),
+        );
         let doc = store.get("agent-1").unwrap();
         assert_eq!(doc.value, json!({"status": "running"}));
         assert_eq!(doc.version, 1);
 
-        store.put("agent-1".into(), json!({"status": "done"}), "agent-1".into());
+        store.put(
+            "agent-1".into(),
+            json!({"status": "done"}),
+            "agent-1".into(),
+        );
         let doc = store.get("agent-1").unwrap();
         assert_eq!(doc.value, json!({"status": "done"}));
         assert_eq!(doc.version, 2);
@@ -172,14 +180,23 @@ mod tests {
             "agent-0".into(),
         );
 
-        let tool = store.get_nested("plan", &["steps", "step-1", "tool"]).unwrap();
+        let tool = store
+            .get_nested("plan", &["steps", "step-1", "tool"])
+            .unwrap();
         assert_eq!(tool, json!("search"));
 
         store
-            .put_nested("plan", &["steps", "step-1", "status"], json!("complete"), "agent-1".into())
+            .put_nested(
+                "plan",
+                &["steps", "step-1", "status"],
+                json!("complete"),
+                "agent-1".into(),
+            )
             .unwrap();
 
-        let status = store.get_nested("plan", &["steps", "step-1", "status"]).unwrap();
+        let status = store
+            .get_nested("plan", &["steps", "step-1", "status"])
+            .unwrap();
         assert_eq!(status, json!("complete"));
     }
 

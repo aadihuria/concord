@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 
 use clap::Parser;
-use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
 
 use concord_server::ConcordServer;
 
@@ -34,9 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         init_otel_tracing(&args.id)?;
     } else {
         tracing_subscriber::fmt()
-            .with_env_filter(
-                EnvFilter::from_default_env().add_directive("concord=info".parse()?),
-            )
+            .with_env_filter(EnvFilter::from_default_env().add_directive("concord=info".parse()?))
             .init();
     }
 
@@ -60,24 +58,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn init_otel_tracing(service_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     use opentelemetry::KeyValue;
-    use opentelemetry_sdk::Resource;
-    use opentelemetry_sdk::trace::TracerProvider;
     use opentelemetry_otlp::SpanExporter;
+    use opentelemetry_sdk::trace::TracerProvider;
+    use opentelemetry_sdk::Resource;
 
-    let exporter = SpanExporter::builder()
-        .with_tonic()
-        .build()?;
+    let exporter = SpanExporter::builder().with_tonic().build()?;
 
     let provider = TracerProvider::builder()
         .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
-        .with_resource(Resource::new(vec![
-            KeyValue::new("service.name", service_name.to_string()),
-        ]))
+        .with_resource(Resource::new(vec![KeyValue::new(
+            "service.name",
+            service_name.to_string(),
+        )]))
         .build();
 
     use opentelemetry::trace::TracerProvider as _;
-    let telemetry = tracing_opentelemetry::layer()
-        .with_tracer(provider.tracer("concord"));
+    let telemetry = tracing_opentelemetry::layer().with_tracer(provider.tracer("concord"));
 
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env().add_directive("concord=info".parse()?))

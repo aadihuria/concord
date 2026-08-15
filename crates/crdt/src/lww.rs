@@ -48,8 +48,7 @@ impl LwwRegister {
     }
 
     fn should_accept(&self, timestamp: u64, node_id: &str) -> bool {
-        timestamp > self.timestamp
-            || (timestamp == self.timestamp && node_id > &self.node_id)
+        timestamp > self.timestamp || (timestamp == self.timestamp && node_id > &self.node_id)
     }
 }
 

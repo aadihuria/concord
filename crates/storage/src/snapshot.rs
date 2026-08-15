@@ -37,8 +37,8 @@ impl SnapshotManager {
         let path = self.dir.join(&filename);
         let tmp_path = self.dir.join(format!("{}.tmp", filename));
 
-        let payload = serde_json::to_vec(snapshot)
-            .map_err(|e| StorageError::Serialize(e.to_string()))?;
+        let payload =
+            serde_json::to_vec(snapshot).map_err(|e| StorageError::Serialize(e.to_string()))?;
 
         let crc = crc32fast::hash(&payload);
 
@@ -68,7 +68,7 @@ impl SnapshotManager {
             })
             .collect();
 
-        snapshots.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+        snapshots.sort_by_key(|e| std::cmp::Reverse(e.file_name()));
 
         for entry in snapshots {
             match self.load_snapshot(&entry.path()) {
@@ -126,7 +126,7 @@ impl SnapshotManager {
             })
             .collect();
 
-        snapshots.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+        snapshots.sort_by_key(|e| std::cmp::Reverse(e.file_name()));
 
         let mut removed = 0;
         for entry in snapshots.into_iter().skip(keep) {

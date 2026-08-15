@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 pub mod client_service;
 pub mod raft_service;
 pub mod server;

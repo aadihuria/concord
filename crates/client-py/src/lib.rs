@@ -1,5 +1,7 @@
-use pyo3::prelude::*;
+#![allow(clippy::useless_conversion)]
+
 use pyo3::exceptions::{PyConnectionError, PyRuntimeError, PyValueError};
+use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 use tonic::transport::Channel;
 
@@ -55,11 +57,16 @@ impl ConcordClient {
             key: key.to_string(),
         };
 
-        let resp = self.rt.block_on(async {
-            let mut client = self.client.clone();
-            client.get(req).await
-                .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
-        })?.into_inner();
+        let resp = self
+            .rt
+            .block_on(async {
+                let mut client = self.client.clone();
+                client
+                    .get(req)
+                    .await
+                    .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
+            })?
+            .into_inner();
 
         if resp.found {
             Python::with_gil(|py| {
@@ -85,15 +92,21 @@ impl ConcordClient {
             timestamp: ts,
         };
 
-        let resp = self.rt.block_on(async {
-            let mut client = self.client.clone();
-            client.put(req).await
-                .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
-        })?.into_inner();
+        let resp = self
+            .rt
+            .block_on(async {
+                let mut client = self.client.clone();
+                client
+                    .put(req)
+                    .await
+                    .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
+            })?
+            .into_inner();
 
         if !resp.success && !resp.leader_hint.is_empty() {
             return Err(PyRuntimeError::new_err(format!(
-                "not leader, try: {}", resp.leader_hint
+                "not leader, try: {}",
+                resp.leader_hint
             )));
         }
 
@@ -106,11 +119,16 @@ impl ConcordClient {
             key: key.to_string(),
         };
 
-        let resp = self.rt.block_on(async {
-            let mut client = self.client.clone();
-            client.delete(req).await
-                .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
-        })?.into_inner();
+        let resp = self
+            .rt
+            .block_on(async {
+                let mut client = self.client.clone();
+                client
+                    .delete(req)
+                    .await
+                    .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
+            })?
+            .into_inner();
 
         Ok(resp.success)
     }
@@ -123,11 +141,16 @@ impl ConcordClient {
             node_id: self.node_id.clone(),
         };
 
-        let resp = self.rt.block_on(async {
-            let mut client = self.client.clone();
-            client.add_to_set(req).await
-                .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
-        })?.into_inner();
+        let resp = self
+            .rt
+            .block_on(async {
+                let mut client = self.client.clone();
+                client
+                    .add_to_set(req)
+                    .await
+                    .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
+            })?
+            .into_inner();
 
         Ok(resp.success)
     }
@@ -139,11 +162,16 @@ impl ConcordClient {
             element: element.to_string(),
         };
 
-        let resp = self.rt.block_on(async {
-            let mut client = self.client.clone();
-            client.remove_from_set(req).await
-                .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
-        })?.into_inner();
+        let resp = self
+            .rt
+            .block_on(async {
+                let mut client = self.client.clone();
+                client
+                    .remove_from_set(req)
+                    .await
+                    .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
+            })?
+            .into_inner();
 
         Ok(resp.success)
     }
@@ -154,11 +182,16 @@ impl ConcordClient {
             key: key.to_string(),
         };
 
-        let resp = self.rt.block_on(async {
-            let mut client = self.client.clone();
-            client.get_set(req).await
-                .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
-        })?.into_inner();
+        let resp = self
+            .rt
+            .block_on(async {
+                let mut client = self.client.clone();
+                client
+                    .get_set(req)
+                    .await
+                    .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
+            })?
+            .into_inner();
 
         if resp.found {
             Ok(Some(resp.elements))
@@ -187,11 +220,16 @@ impl ConcordClient {
             timestamp: ts,
         };
 
-        let resp = self.rt.block_on(async {
-            let mut client = self.client.clone();
-            client.insert_into_sequence(req).await
-                .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
-        })?.into_inner();
+        let resp = self
+            .rt
+            .block_on(async {
+                let mut client = self.client.clone();
+                client
+                    .insert_into_sequence(req)
+                    .await
+                    .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
+            })?
+            .into_inner();
 
         Ok(resp.success)
     }
@@ -208,11 +246,16 @@ impl ConcordClient {
             position,
         };
 
-        let resp = self.rt.block_on(async {
-            let mut client = self.client.clone();
-            client.delete_from_sequence(req).await
-                .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
-        })?.into_inner();
+        let resp = self
+            .rt
+            .block_on(async {
+                let mut client = self.client.clone();
+                client
+                    .delete_from_sequence(req)
+                    .await
+                    .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
+            })?
+            .into_inner();
 
         Ok(resp.success)
     }
@@ -223,11 +266,16 @@ impl ConcordClient {
             key: key.to_string(),
         };
 
-        let resp = self.rt.block_on(async {
-            let mut client = self.client.clone();
-            client.get_sequence(req).await
-                .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
-        })?.into_inner();
+        let resp = self
+            .rt
+            .block_on(async {
+                let mut client = self.client.clone();
+                client
+                    .get_sequence(req)
+                    .await
+                    .map_err(|e| PyRuntimeError::new_err(format!("rpc error: {}", e)))
+            })?
+            .into_inner();
 
         if resp.found {
             Python::with_gil(|py| {
@@ -247,7 +295,19 @@ impl ConcordClient {
 
 impl ConcordClient {
     fn next_timestamp(&self) -> u64 {
-        self.timestamp.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_micros() as u64;
+        let prev = self
+            .timestamp
+            .fetch_max(now, std::sync::atomic::Ordering::SeqCst);
+        if now <= prev {
+            self.timestamp
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+        } else {
+            now
+        }
     }
 }
 
@@ -301,7 +361,9 @@ fn json_to_py(py: Python<'_>, val: &serde_json::Value) -> PyResult<PyObject> {
                 .iter()
                 .map(|item| json_to_py(py, item))
                 .collect::<PyResult<_>>()?;
-            Ok(pyo3::types::PyList::new_bound(py, &items).into_any().unbind())
+            Ok(pyo3::types::PyList::new_bound(py, &items)
+                .into_any()
+                .unbind())
         }
         serde_json::Value::Object(map) => {
             let dict = pyo3::types::PyDict::new_bound(py);

@@ -39,7 +39,10 @@ fn elect_leader(nodes: &mut [RaftNode]) -> usize {
     for _ in 0..10 {
         deliver_messages(nodes);
     }
-    nodes.iter().position(|n| n.role() == NodeRole::Leader).unwrap()
+    nodes
+        .iter()
+        .position(|n| n.role() == NodeRole::Leader)
+        .unwrap()
 }
 
 fn bench_write_throughput(cluster_size: usize, num_writes: usize) {
@@ -77,7 +80,11 @@ fn bench_write_throughput(cluster_size: usize, num_writes: usize) {
 
         println!(
             "  {}-node cluster, {} writes: {:.0} ops/sec ({:.1}µs/op) in {:.1}ms",
-            cluster_size, num_writes, ops_per_sec, us_per_op, elapsed.as_secs_f64() * 1000.0
+            cluster_size,
+            num_writes,
+            ops_per_sec,
+            us_per_op,
+            elapsed.as_secs_f64() * 1000.0
         );
     });
 }
@@ -114,7 +121,9 @@ fn bench_read_throughput(num_reads: usize) {
 
         println!(
             "  {} reads: {:.0} ops/sec in {:.1}ms",
-            num_reads, ops_per_sec, elapsed.as_secs_f64() * 1000.0
+            num_reads,
+            ops_per_sec,
+            elapsed.as_secs_f64() * 1000.0
         );
     });
 }
@@ -151,7 +160,10 @@ fn bench_failover_recovery() {
         loop {
             deliver_messages(&mut nodes);
             rounds += 1;
-            if nodes.iter().any(|n| n.role() == NodeRole::Leader && n.id() != nodes[leader_idx].id()) {
+            if nodes
+                .iter()
+                .any(|n| n.role() == NodeRole::Leader && n.id() != nodes[leader_idx].id())
+            {
                 break;
             }
             if rounds > 100 {

@@ -1,8 +1,8 @@
 use std::pin::Pin;
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
 use tokio::sync::broadcast;
+use tokio::sync::Mutex;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 use tonic::{Request, Response, Status};
@@ -129,16 +129,16 @@ impl ClientService for ClientServiceImpl {
         }
     }
 
-    type SubscribeStream = Pin<Box<dyn tokio_stream::Stream<Item = Result<WatchEvent, Status>> + Send>>;
+    type SubscribeStream =
+        Pin<Box<dyn tokio_stream::Stream<Item = Result<WatchEvent, Status>> + Send>>;
 
     async fn subscribe(
         &self,
         _request: Request<SubscribeRequest>,
     ) -> Result<Response<Self::SubscribeStream>, Status> {
         let rx = self.watch_tx.subscribe();
-        let stream = BroadcastStream::new(rx).map(|result| {
-            result.map_err(|e| Status::internal(e.to_string()))
-        });
+        let stream = BroadcastStream::new(rx)
+            .map(|result| result.map_err(|e| Status::internal(e.to_string())));
         Ok(Response::new(Box::pin(stream)))
     }
 

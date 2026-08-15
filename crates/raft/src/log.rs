@@ -154,28 +154,12 @@ impl Default for RaftLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
-    use concord_crdt::{CrdtOp, state::StateKey};
 
     fn make_entry(index: u64, term: u64) -> LogEntry {
         LogEntry {
             index,
             term,
             command: Command::Noop,
-        }
-    }
-
-    #[allow(dead_code)]
-    fn make_crdt_entry(index: u64, term: u64) -> LogEntry {
-        LogEntry {
-            index,
-            term,
-            command: Command::CrdtOp(CrdtOp::SetRegister {
-                key: StateKey::new("test", "key"),
-                value: json!(index),
-                timestamp: index,
-                node_id: "test".into(),
-            }),
         }
     }
 

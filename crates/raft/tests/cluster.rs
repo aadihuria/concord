@@ -46,9 +46,7 @@ impl TestCluster {
     }
 
     fn find_leader(&self) -> Option<usize> {
-        self.nodes
-            .iter()
-            .position(|n| n.role() == NodeRole::Leader)
+        self.nodes.iter().position(|n| n.role() == NodeRole::Leader)
     }
 
     fn deliver_messages(&mut self) {
@@ -99,11 +97,6 @@ impl TestCluster {
     fn heal_partition(&mut self, a: usize, b: usize) {
         self.partitioned.remove(&(a, b));
         self.partitioned.remove(&(b, a));
-    }
-
-    #[allow(dead_code)]
-    fn heal_all(&mut self) {
-        self.partitioned.clear();
     }
 
     fn is_partitioned(&self, a: usize, b: usize) -> bool {
@@ -300,9 +293,13 @@ fn test_concurrent_proposals_converge() {
                 .get_register(&key)
                 .map(|r| r.value.clone());
             assert_eq!(
-                leader_val, node_val,
+                leader_val,
+                node_val,
                 "state divergence on key k{}: leader={:?}, {}={:?}",
-                i, leader_val, node.id(), node_val
+                i,
+                leader_val,
+                node.id(),
+                node_val
             );
         }
     }
@@ -357,10 +354,7 @@ fn test_heal_and_catch_up() {
 
     // node 2 should have caught up
     let key = StateKey::new("data", "during-2");
-    let node2_val = cluster.nodes[2]
-        .state_machine()
-        .state()
-        .get_register(&key);
+    let node2_val = cluster.nodes[2].state_machine().state().get_register(&key);
 
     assert!(
         node2_val.is_some(),

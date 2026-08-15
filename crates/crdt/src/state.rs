@@ -75,21 +75,18 @@ impl CrdtState {
                 timestamp,
                 node_id,
             } => {
-                let reg = self.registers.entry(key.clone()).or_insert_with(|| {
-                    LwwRegister::new(Value::Null, 0, String::new())
-                });
+                let reg = self
+                    .registers
+                    .entry(key.clone())
+                    .or_insert_with(|| LwwRegister::new(Value::Null, 0, String::new()));
                 reg.update(value.clone(), *timestamp, node_id.clone());
             }
             CrdtOp::AddToSet { key, op } | CrdtOp::RemoveFromSet { key, op } => {
-                let set = self.sets.entry(key.clone()).or_insert_with(OrSet::new);
+                let set = self.sets.entry(key.clone()).or_default();
                 set.apply(op);
             }
-            CrdtOp::InsertIntoSequence { key, op }
-            | CrdtOp::DeleteFromSequence { key, op } => {
-                let seq = self
-                    .sequences
-                    .entry(key.clone())
-                    .or_insert_with(RgaSequence::new);
+            CrdtOp::InsertIntoSequence { key, op } | CrdtOp::DeleteFromSequence { key, op } => {
+                let seq = self.sequences.entry(key.clone()).or_default();
                 seq.apply(op);
             }
         }
@@ -125,21 +122,15 @@ impl CrdtState {
     }
 
     pub fn add_to_set(&mut self, key: StateKey, element: String, node_id: &str) -> CrdtOp {
-        let set = self.sets.entry(key.clone()).or_insert_with(OrSet::new);
+        let set = self.sets.entry(key.clone()).or_default();
         let inner_op = set.add(element, node_id);
-        CrdtOp::AddToSet {
-            key,
-            op: inner_op,
-        }
+        CrdtOp::AddToSet { key, op: inner_op }
     }
 
     pub fn remove_from_set(&mut self, key: StateKey, element: &str) -> Option<CrdtOp> {
         let set = self.sets.get_mut(&key)?;
         let inner_op = set.remove(element)?;
-        Some(CrdtOp::RemoveFromSet {
-            key,
-            op: inner_op,
-        })
+        Some(CrdtOp::RemoveFromSet { key, op: inner_op })
     }
 
     pub fn insert_into_sequence(
@@ -150,42 +141,31 @@ impl CrdtState {
         timestamp: u64,
         node_id: &str,
     ) -> CrdtOp {
-        let seq = self
-            .sequences
-            .entry(key.clone())
-            .or_insert_with(RgaSequence::new);
+        let seq = self.sequences.entry(key.clone()).or_default();
         let inner_op = seq.insert(position, value, timestamp, node_id);
-        CrdtOp::InsertIntoSequence {
-            key,
-            op: inner_op,
-        }
+        CrdtOp::InsertIntoSequence { key, op: inner_op }
     }
 
     pub fn delete_from_sequence(&mut self, key: StateKey, position: usize) -> Option<CrdtOp> {
         let seq = self.sequences.get_mut(&key)?;
         let inner_op = seq.delete(position)?;
-        Some(CrdtOp::DeleteFromSequence {
-            key,
-            op: inner_op,
-        })
+        Some(CrdtOp::DeleteFromSequence { key, op: inner_op })
     }
 
     pub fn merge(&mut self, other: &CrdtState) {
         for (key, other_reg) in &other.registers {
-            let reg = self.registers.entry(key.clone()).or_insert_with(|| {
-                LwwRegister::new(Value::Null, 0, String::new())
-            });
+            let reg = self
+                .registers
+                .entry(key.clone())
+                .or_insert_with(|| LwwRegister::new(Value::Null, 0, String::new()));
             reg.merge(other_reg);
         }
         for (key, other_set) in &other.sets {
-            let set = self.sets.entry(key.clone()).or_insert_with(OrSet::new);
+            let set = self.sets.entry(key.clone()).or_default();
             set.merge(other_set);
         }
         for (key, other_seq) in &other.sequences {
-            let seq = self
-                .sequences
-                .entry(key.clone())
-                .or_insert_with(RgaSequence::new);
+            let seq = self.sequences.entry(key.clone()).or_default();
             seq.merge(other_seq);
         }
     }
@@ -273,10 +253,7 @@ mod tests {
         let serialized = serde_json::to_string(&op).unwrap();
         let deserialized: CrdtOp = serde_json::from_str(&serialized).unwrap();
 
-        if let CrdtOp::SetRegister {
-            key, timestamp, ..
-        } = deserialized
-        {
+        if let CrdtOp::SetRegister { key, timestamp, .. } = deserialized {
             assert_eq!(key.namespace, "ns");
             assert_eq!(timestamp, 42);
         } else {
