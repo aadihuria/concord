@@ -1,0 +1,27 @@
+services:
+  node-0:
+    build: .
+    command:
+      - --id=node-0
+      - --addr=0.0.0.0:50051
+      - --peers=node-1=http://node-1:50051,node-2=http://node-2:50051
+    ports:
+      - "50051:50051"
+
+  node-1:
+    build: .
+    command:
+      - --id=node-1
+      - --addr=0.0.0.0:50051
+      - --peers=node-0=http://node-0:50051,node-2=http://node-2:50051
+    ports:
+      - "50052:50051"
+
+  node-2:
+    build: .
+    command:
+      - --id=node-2
+      - --addr=0.0.0.0:50051
+      - --peers=node-0=http://node-0:50051,node-1=http://node-1:50051
+    ports:
+      - "50053:50051"
