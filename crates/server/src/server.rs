@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::time::{Duration, Instant};
 use tonic::transport::Server;
-use tracing::{info, debug};
+use tracing::{debug, info};
 
 use concord_proto::concord::client_service_server::ClientServiceServer;
 use concord_proto::concord::raft_service_server::RaftServiceServer;
@@ -14,7 +14,7 @@ use concord_raft::message::*;
 use concord_raft::node::{RaftConfig, RaftNode};
 
 use crate::client_service::ClientServiceImpl;
-use crate::raft_service::{RaftServiceImpl, log_entry_to_proto};
+use crate::raft_service::{log_entry_to_proto, RaftServiceImpl};
 use crate::transport::PeerTransport;
 
 pub struct ConcordServer {
@@ -61,10 +61,7 @@ impl ConcordServer {
         Ok(())
     }
 
-    async fn tick_loop(
-        node: Arc<tokio::sync::Mutex<RaftNode>>,
-        transport: PeerTransport,
-    ) {
+    async fn tick_loop(node: Arc<tokio::sync::Mutex<RaftNode>>, transport: PeerTransport) {
         let mut interval = tokio::time::interval(Duration::from_millis(10));
 
         loop {
@@ -77,18 +74,20 @@ impl ConcordServer {
                 n.take_outbox()
             };
 
-            Self::dispatch_messages(outbox, &transport).await;
+            Self::dispatch_messages(outbox, &transport, &node);
         }
     }
 
-    async fn dispatch_messages(
+    fn dispatch_messages(
         messages: Vec<(String, RaftMessage)>,
         transport: &PeerTransport,
+        node: &Arc<tokio::sync::Mutex<RaftNode>>,
     ) {
         for (to, msg) in messages {
             let transport = transport.clone();
+            let node = Arc::clone(node);
             tokio::spawn(async move {
-                if let Err(e) = Self::send_message(&to, msg, &transport).await {
+                if let Err(e) = Self::send_message(&to, msg, &transport, &node).await {
                     debug!("failed to send to {}: {}", to, e);
                 }
             });
@@ -99,16 +98,14 @@ impl ConcordServer {
         to: &str,
         msg: RaftMessage,
         transport: &PeerTransport,
+        node: &Arc<tokio::sync::Mutex<RaftNode>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut client = transport.get_client(to).await?;
 
-        match msg {
+        let reply: Option<RaftMessage> = match msg {
             RaftMessage::AppendEntries(req) => {
-                let entries: Vec<LogEntryProto> = req
-                    .entries
-                    .iter()
-                    .map(|e| log_entry_to_proto(e))
-                    .collect();
+                let entries: Vec<LogEntryProto> =
+                    req.entries.iter().map(log_entry_to_proto).collect();
 
                 let proto_req = AppendEntriesReq {
                     term: req.term,
@@ -119,7 +116,13 @@ impl ConcordServer {
                     leader_commit: req.leader_commit,
                 };
 
-                let _resp = client.append_entries(proto_req).await?.into_inner();
+                let resp = client.append_entries(proto_req).await?.into_inner();
+                Some(RaftMessage::AppendEntriesReply(AppendEntriesResponse {
+                    term: resp.term,
+                    success: resp.success,
+                    match_index: resp.match_index,
+                    from: resp.from,
+                }))
             }
             RaftMessage::RequestVote(req) => {
                 let proto_req = VoteReq {
@@ -129,7 +132,12 @@ impl ConcordServer {
                     last_log_term: req.last_log_term,
                 };
 
-                let _resp = client.request_vote(proto_req).await?.into_inner();
+                let resp = client.request_vote(proto_req).await?.into_inner();
+                Some(RaftMessage::RequestVoteReply(VoteResponse {
+                    term: resp.term,
+                    vote_granted: resp.vote_granted,
+                    from: resp.from,
+                }))
             }
             RaftMessage::InstallSnapshot(req) => {
                 let proto_req = InstallSnapshotReq {
@@ -140,9 +148,20 @@ impl ConcordServer {
                     data: req.data,
                 };
 
-                let _resp = client.install_snapshot(proto_req).await?.into_inner();
+                let resp = client.install_snapshot(proto_req).await?.into_inner();
+                Some(RaftMessage::InstallSnapshotReply(
+                    InstallSnapshotResponse {
+                        term: resp.term,
+                        from: resp.from,
+                    },
+                ))
             }
-            _ => {}
+            _ => None,
+        };
+
+        if let Some(reply) = reply {
+            let mut n = node.lock().await;
+            n.handle_message(reply);
         }
 
         Ok(())
