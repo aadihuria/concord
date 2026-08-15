@@ -1,24 +1,27 @@
-# concord
+# Concord
 
-a raft-replicated, crdt-merged shared-state store for multi-agent ai systems.
+A Raft-replicated, CRDT-merged shared-state store for multi-agent AI systems.
 
-## the problem
+[![CI](https://github.com/aadihuria/concord/actions/workflows/ci.yml/badge.svg)](https://github.com/aadihuria/concord/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-research analyzing 1,600+ multi-agent execution traces across autogen, crewai, and langgraph found that **interagent misalignment — agents operating on inconsistent views of shared state — causes 36.9% of all multi-agent failures**, the single largest failure category.
+## The Problem
 
-existing frameworks patch around this with crude mechanisms: langgraph uses deterministic reducer functions, crewai does similarity-threshold deduplication. neither gives formal correctness guarantees, and both degrade under true parallel execution.
+Research analyzing 1,600+ multi-agent execution traces across AutoGen, CrewAI, and LangGraph found that **interagent misalignment — agents operating on inconsistent views of shared state — causes 36.9% of all multi-agent failures**, the single largest failure category.
 
-## what concord does
+Existing frameworks patch around this with crude mechanisms: LangGraph uses deterministic reducer functions, CrewAI does similarity-threshold deduplication. Neither gives formal correctness guarantees, and both degrade under true parallel execution.
 
-raft gives crash-durable, linearizable replication of the log. a crdt layer sitting on top of that log gives **provably-correct, lock-free merges** for concurrent writes — agents don't wait on each other, and the merged result is guaranteed to converge no matter the write order.
+## What Concord Does
 
-this is a formal correctness story, not a similarity heuristic.
+Raft gives crash-durable, linearizable replication of the log. A CRDT layer sitting on top of that log gives **provably-correct, lock-free merges** for concurrent writes — agents don't wait on each other, and the merged result is guaranteed to converge no matter the write order.
 
-### the hybrid cp/ap tradeoff
+This is a formal correctness story, not a similarity heuristic.
 
-raft alone is a cp protocol — it sacrifices availability during elections/partitions to preserve strict consistency. concord's crdt layer introduces ap-style flexibility within that framework: concurrent writes in the same term don't block on each other or require cross-node locking, because the merge function is commutative, associative, and idempotent by construction.
+### The Hybrid CP/AP Tradeoff
 
-## architecture
+Raft alone is a CP protocol — it sacrifices availability during elections/partitions to preserve strict consistency. Concord's CRDT layer introduces AP-style flexibility within that framework: concurrent writes in the same term don't block on each other or require cross-node locking, because the merge function is commutative, associative, and idempotent by construction.
+
+## Architecture
 
 ```
  Client SDK (Python via PyO3, Rust native)
@@ -43,94 +46,140 @@ raft alone is a cp protocol — it sacrifices availability during elections/part
    └───────────────────┘
 ```
 
-each node runs the full stack. client writes go to the current leader, get replicated via raft's appendentries rpc, and are applied to the crdt state machine once committed. reads can be served from any node.
+Each node runs the full stack. Client writes go to the current leader, get replicated via Raft's AppendEntries RPC, and are applied to the CRDT state machine once committed. Reads can be served from any node.
 
-## crdt types
+## CRDT Types
 
-| type | use case | merge semantics |
+| Type | Use Case | Merge Semantics |
 |------|----------|-----------------|
-| **lww-register** | scalar state (agent status, current task) | highest (timestamp, node_id) wins |
-| **or-set** | accumulating facts, completed subtasks | add-wins on concurrent add/remove via unique tags |
-| **rga sequence** | ordered plan steps, execution traces | causal ordering with deterministic interleaving |
+| **LWW-Register** | Scalar state (agent status, current task) | Highest (timestamp, node_id) wins |
+| **OR-Set** | Accumulating facts, completed subtasks | Add-wins on concurrent add/remove via unique tags |
+| **RGA Sequence** | Ordered plan steps, execution traces | Causal ordering with deterministic interleaving |
 
-all three are verified with property-based tests (proptest) proving commutativity, associativity, and idempotency.
+All three are verified with property-based tests (proptest) proving commutativity, associativity, and idempotency.
 
-## benchmarks
+## Benchmarks
 
 ```
-write throughput:
+Write throughput:
   3-node cluster, 10k writes: 202,771 ops/sec (4.9µs/op)
   5-node cluster, 10k writes: 137,332 ops/sec (7.3µs/op)
 
-read throughput:
+Read throughput:
   1M reads: 54,324,821 ops/sec
 
-failover:
-  leader recovery: <1ms (2 message rounds)
+Failover:
+  Leader recovery: <1ms (2 message rounds)
 ```
 
-## quickstart
+## Quickstart
 
-### running a 3-node cluster
+### Option 1: Docker Compose (recommended)
 
 ```bash
-# terminal 1
+docker compose up --build
+```
+
+This starts a 3-node cluster. The leader is accessible at `localhost:50051`.
+
+### Option 2: Run from source
+
+```bash
+# Terminal 1
 cargo run -p concord-server -- --id node-0 --addr 127.0.0.1:50051 \
   --peers node-1=127.0.0.1:50052,node-2=127.0.0.1:50053
 
-# terminal 2
+# Terminal 2
 cargo run -p concord-server -- --id node-1 --addr 127.0.0.1:50052 \
   --peers node-0=127.0.0.1:50051,node-2=127.0.0.1:50053
 
-# terminal 3
+# Terminal 3
 cargo run -p concord-server -- --id node-2 --addr 127.0.0.1:50053 \
   --peers node-0=127.0.0.1:50051,node-1=127.0.0.1:50052
 ```
 
-### running benchmarks
+### Python SDK
+
+Install the Python client (requires Rust toolchain):
+
+```bash
+cd crates/client-py
+pip install maturin
+maturin develop --release
+```
+
+Then use it:
+
+```python
+from concord import ConcordClient
+
+client = ConcordClient("127.0.0.1:50051", "my-agent")
+
+# LWW-Register: last-writer-wins scalar state
+client.put("agents", "status", {"state": "running", "task": "search"})
+status = client.get("agents", "status")
+
+# OR-Set: add-wins set for accumulating facts
+client.add_to_set("knowledge", "facts", "python-3.12-released")
+client.add_to_set("knowledge", "facts", "rust-1.75-stable")
+facts = client.get_set("knowledge", "facts")
+
+# RGA Sequence: ordered list with deterministic merge
+client.insert_into_sequence("plan", "steps", 0, {"action": "search"})
+client.insert_into_sequence("plan", "steps", 1, {"action": "analyze"})
+steps = client.get_sequence("plan", "steps")
+```
+
+See [`examples/concurrent_agents.py`](examples/concurrent_agents.py) for a full multi-agent demo.
+
+### Running Tests
+
+```bash
+# All tests
+cargo test
+
+# Property-based CRDT tests
+cargo test -p concord-crdt --test proptests
+
+# Raft cluster integration tests (leader election, failover, partitions)
+cargo test -p concord-raft --test cluster
+```
+
+### Running Benchmarks
 
 ```bash
 cargo run --release -p concord-bench --bin throughput
 ```
 
-### running tests
-
-```bash
-# all tests
-cargo test
-
-# property-based crdt tests
-cargo test -p concord-crdt --test proptests
-
-# raft cluster integration tests
-cargo test -p concord-raft --test cluster
-```
-
-## repo structure
+## Repo Structure
 
 ```
 concord/
   crates/
-    storage/     — wal, in-memory store, snapshot manager
-    crdt/        — lww-register, or-set, rga sequence
+    crdt/        — LWW-Register, OR-Set, RGA Sequence
     raft/        — leader election, log replication, state machine
-    proto/       — grpc protobuf definitions
-    server/      — ties raft + crdt + storage + grpc together
+    storage/     — WAL, in-memory store, snapshot manager
+    proto/       — gRPC protobuf definitions
+    server/      — ties Raft + CRDT + storage + gRPC together
+    client-py/   — Python SDK via PyO3
   benches/       — throughput and failover benchmarks
+  examples/      — multi-agent demo
   docs/
-    design.md    — crdt + raft design rationale
+    design.md    — CRDT + Raft design rationale
 ```
 
-## tech stack
+## Tech Stack
 
-| layer | choice | why |
+| Layer | Choice | Why |
 |-------|--------|-----|
-| core | rust | memory safety + performance |
-| rpc | grpc (tonic) | standard for inter-service communication |
-| consensus | hand-rolled raft | the from-scratch implementation is the depth signal |
-| crdts | hand-rolled | no existing library targets agent-state shapes |
-| testing | proptest | property-based verification of crdt convergence |
+| Core | Rust | Memory safety without GC overhead |
+| RPC | gRPC (tonic) | Standard for inter-service communication |
+| Consensus | Hand-rolled Raft | Full implementation of leader election, log replication, snapshotting |
+| CRDTs | Hand-rolled | No existing library targets agent-state shapes |
+| Python SDK | PyO3 + maturin | Native performance with idiomatic Python API |
+| Testing | proptest | Property-based verification of CRDT convergence laws |
+| Observability | OpenTelemetry | Optional distributed tracing via `--otel` flag |
 
-## license
+## License
 
-mit
+MIT
