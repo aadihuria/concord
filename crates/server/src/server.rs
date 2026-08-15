@@ -149,12 +149,10 @@ impl ConcordServer {
                 };
 
                 let resp = client.install_snapshot(proto_req).await?.into_inner();
-                Some(RaftMessage::InstallSnapshotReply(
-                    InstallSnapshotResponse {
-                        term: resp.term,
-                        from: resp.from,
-                    },
-                ))
+                Some(RaftMessage::InstallSnapshotReply(InstallSnapshotResponse {
+                    term: resp.term,
+                    from: resp.from,
+                }))
             }
             _ => None,
         };
