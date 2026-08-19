@@ -16,6 +16,13 @@ pub enum Command {
 }
 
 /// In-memory Raft log with support for truncation and compaction.
+///
+/// `entries` only holds what hasn't been compacted into a snapshot yet, so
+/// `entries[0]` is not necessarily log index 1 — it's whatever index comes
+/// right after `snapshot_last_index`. Every method that takes a log `index`
+/// has to translate it to a vec offset via `index - snapshot_last_index - 1`
+/// before touching `entries`; that translation is the one invariant to keep
+/// straight when changing this file.
 pub struct RaftLog {
     entries: Vec<LogEntry>,
     snapshot_last_index: u64,
@@ -78,6 +85,15 @@ impl RaftLog {
         self.entries.push(entry);
     }
 
+    /// Merge a leader's entries into this log (follower side of AppendEntries).
+    ///
+    /// For each incoming entry: if we already have something at that index
+    /// and its term disagrees, the local log diverged from the leader's —
+    /// everything from that point on is truncated and replaced, since a
+    /// term mismatch means whatever we had there came from an election that
+    /// didn't win. If the term matches, the entry (and anything already
+    /// following it) is left alone; re-sending already-applied entries on a
+    /// retried heartbeat must be a no-op.
     pub fn append_entries(&mut self, _prev_index: u64, entries: Vec<LogEntry>) {
         for entry in entries {
             let offset = if entry.index <= self.snapshot_last_index {
@@ -106,6 +122,10 @@ impl RaftLog {
         self.entries.truncate(offset);
     }
 
+    /// Discard entries up to and including `through_index`, replacing them
+    /// with just the snapshot marker. Anything after `through_index` is kept
+    /// as-is — compaction only ever drops a prefix of the log, since that
+    /// prefix is exactly what the snapshot already captures.
     pub fn compact(&mut self, through_index: u64, through_term: u64) {
         let offset = if through_index <= self.snapshot_last_index {
             return;

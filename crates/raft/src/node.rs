@@ -199,7 +199,12 @@ impl RaftNode {
         self.leader_id = Some(req.leader_id.clone());
         self.reset_election_timeout();
 
-        // log consistency check
+        // Log consistency check (Raft §5.3): the leader tells us what term
+        // it expects to find at prev_log_index. If our entry there has a
+        // different term — or we don't have one, and the leader thinks we
+        // should — our log has diverged from the leader's history, so we
+        // reject and let the leader back off next_index and retry with an
+        // earlier prev_log_index until it finds where our logs agree.
         if req.prev_log_index > 0 {
             match self.log.term_at(req.prev_log_index) {
                 Some(term) if term != req.prev_log_term => {
@@ -475,7 +480,11 @@ impl RaftNode {
     fn replicate_to(&mut self, peer: &str) {
         let next = self.next_index.get(peer).copied().unwrap_or(1);
 
-        // if peer is too far behind and we have a snapshot, send snapshot instead
+        // If the peer needs an entry we've already compacted away, we can't
+        // satisfy it with AppendEntries at all — the entry no longer exists
+        // in `log`, only folded into the state machine snapshot. Send the
+        // whole snapshot instead; the peer installs it and its next_index
+        // jumps forward past the gap.
         if next <= self.log.snapshot_last_index() && self.log.snapshot_last_index() > 0 {
             let snapshot = self.state_machine.snapshot();
             let data = serde_json::to_vec(&snapshot).unwrap_or_default();
@@ -514,6 +523,15 @@ impl RaftNode {
         self.replicate_to_all();
     }
 
+    /// Advance commit_index as far as a majority's match_index allows.
+    ///
+    /// Only entries from the *current* term are counted (Raft §5.4.2): an
+    /// entry replicated to a majority in an earlier term still isn't safe to
+    /// commit on its own, because a future leader could overwrite it without
+    /// ever having seen it. Once a current-term entry reaches a majority,
+    /// every earlier entry is implicitly committed along with it — match
+    /// indices only grow, so if a majority hasn't matched index n, it can't
+    /// have matched any index beyond n either.
     fn try_advance_commit(&mut self) {
         let cluster_size = self.config.peers.len() + 1;
         let old_commit = self.commit_index;
