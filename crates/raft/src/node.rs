@@ -146,6 +146,10 @@ impl RaftNode {
 
         self.log.append(entry);
         self.replicate_to_all();
+        // The leader always counts as one match for its own log, so a
+        // single-node cluster (no peers to wait on) reaches quorum here
+        // rather than only when a peer's AppendEntries reply comes back.
+        self.try_advance_commit();
         Ok(index)
     }
 
@@ -444,6 +448,7 @@ impl RaftNode {
         };
         self.log.append(entry);
         self.replicate_to_all();
+        self.try_advance_commit();
     }
 
     fn maybe_step_down(&mut self, term: u64) {
