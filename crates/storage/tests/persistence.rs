@@ -17,8 +17,13 @@ use concord_storage::{MemStore, SnapshotManager, Wal};
 /// prove WAL + snapshot + store recover correctly together).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum Op {
-    Put { key: String, value: serde_json::Value },
-    Delete { key: String },
+    Put {
+        key: String,
+        value: serde_json::Value,
+    },
+    Delete {
+        key: String,
+    },
 }
 
 fn apply(store: &MemStore, op: &Op) {
@@ -70,7 +75,10 @@ fn wal_replay_rebuilds_store_state_after_restart() {
         apply(&store, &op);
     }
 
-    assert!(store.get("a").is_none(), "a was deleted, should not survive replay");
+    assert!(
+        store.get("a").is_none(),
+        "a was deleted, should not survive replay"
+    );
     assert_eq!(store.get("b").unwrap().value, json!(2));
 }
 

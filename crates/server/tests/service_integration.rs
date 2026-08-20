@@ -261,7 +261,10 @@ async fn sequence_insert_and_delete_round_trip_in_order() {
         .await
         .unwrap()
         .into_inner();
-    assert_eq!(seq_resp.values_json, vec!["\"research\"", "\"analyze\"", "\"report\""]);
+    assert_eq!(
+        seq_resp.values_json,
+        vec!["\"research\"", "\"analyze\"", "\"report\""]
+    );
 
     svc.delete_from_sequence(Request::new(DeleteFromSequenceRequest {
         namespace: "plan".into(),
