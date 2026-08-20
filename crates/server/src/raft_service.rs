@@ -10,7 +10,7 @@ use concord_proto::concord::{
     VoteReq, VoteResp,
 };
 use concord_raft::log::{Command, LogEntry};
-use concord_raft::message::*;
+use concord_raft::message::{AppendEntriesRequest, RaftMessage, VoteRequest};
 use concord_raft::node::RaftNode;
 
 pub struct RaftServiceImpl {

@@ -9,8 +9,12 @@ use tracing::{debug, info};
 
 use concord_proto::concord::client_service_server::ClientServiceServer;
 use concord_proto::concord::raft_service_server::RaftServiceServer;
-use concord_proto::concord::*;
-use concord_raft::message::*;
+use concord_proto::concord::{
+    AppendEntriesReq, InstallSnapshotReq, LogEntryProto, VoteReq, WatchEvent,
+};
+use concord_raft::message::{
+    AppendEntriesResponse, InstallSnapshotResponse, RaftMessage, VoteResponse,
+};
 use concord_raft::node::{RaftConfig, RaftNode};
 
 use crate::client_service::ClientServiceImpl;

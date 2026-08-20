@@ -28,6 +28,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            # must match spec.replicas above
             - name: REPLICAS
               value: "3"
           command: ["/bin/sh", "-c"]

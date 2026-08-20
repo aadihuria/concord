@@ -11,7 +11,13 @@ use tracing::instrument;
 use concord_crdt::state::StateKey;
 use concord_crdt::CrdtOp;
 use concord_proto::concord::client_service_server::ClientService;
-use concord_proto::concord::*;
+use concord_proto::concord::{
+    AddToSetRequest, AddToSetResponse, DeleteFromSequenceRequest, DeleteFromSequenceResponse,
+    DeleteRequest, DeleteResponse, GetRequest, GetResponse, GetSequenceRequest,
+    GetSequenceResponse, GetSetRequest, GetSetResponse, InsertIntoSequenceRequest,
+    InsertIntoSequenceResponse, PutRequest, PutResponse, RemoveFromSetRequest,
+    RemoveFromSetResponse, SubscribeRequest, WatchEvent,
+};
 use concord_raft::node::RaftNode;
 
 pub struct ClientServiceImpl {
@@ -59,7 +65,7 @@ impl ClientService for ClientServiceImpl {
         let req = request.into_inner();
 
         let value: serde_json::Value = serde_json::from_str(&req.value_json)
-            .map_err(|e| Status::invalid_argument(format!("invalid json: {}", e)))?;
+            .map_err(|e| Status::invalid_argument(format!("invalid json: {e}")))?;
 
         let op = CrdtOp::SetRegister {
             key: StateKey::new(&req.namespace, &req.key),
@@ -220,7 +226,7 @@ impl ClientService for ClientServiceImpl {
         let key = StateKey::new(&req.namespace, &req.key);
 
         let value: serde_json::Value = serde_json::from_str(&req.value_json)
-            .map_err(|e| Status::invalid_argument(format!("invalid json: {}", e)))?;
+            .map_err(|e| Status::invalid_argument(format!("invalid json: {e}")))?;
 
         let mut node = self.node.lock().await;
 
@@ -330,7 +336,11 @@ impl ClientService for ClientServiceImpl {
         let state = node.state_machine().state();
 
         if let Some(set) = state.get_set(&key) {
-            let elements: Vec<String> = set.elements().into_iter().map(|s| s.to_string()).collect();
+            let elements: Vec<String> = set
+                .elements()
+                .into_iter()
+                .map(std::string::ToString::to_string)
+                .collect();
             Ok(Response::new(GetSetResponse {
                 elements,
                 found: true,
